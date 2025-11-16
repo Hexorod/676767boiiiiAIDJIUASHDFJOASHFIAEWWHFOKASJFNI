@@ -511,6 +511,13 @@ document.getElementById('searchBtn').addEventListener('click', async ()=>{
   });
 });
 
+
+document.addEventListener("click", () => {
+  if (YTplayer && YTplayer.playVideo) {
+    YTplayer.playVideo();
+  }
+}, { once: true });
+
 /* ---------- Queue ---------- */
 function addToQueue(item){
   queue.push(item);
@@ -869,8 +876,12 @@ window.onload = ()=>{
 </script>
 
 <!-- hidden youtube player container -->
-<div id="yt-player" style="position:absolute; right:0; width:320px; height:180px; z-index:0;"></div>
-
+<div id="yt-player" style="
+   position:absolute;
+   left:-9999px;
+   width:320px;
+   height:180px;
+"></div>
 
 </body>
 </html>
