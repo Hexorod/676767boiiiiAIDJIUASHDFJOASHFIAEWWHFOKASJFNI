@@ -410,6 +410,17 @@ html,body{
   </main>
 </div>
 
+<div id="customDialog" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);justify-content:center;align-items:center;z-index:9999;font-family:Inter, 'Segoe UI', Roboto, Arial;">
+  <div style="background:#0b0f12;padding:20px;border-radius:12px;min-width:320px;color:#00ff55;display:flex;flex-direction:column;gap:12px;">
+    <div id="customDialogMessage" style="font-weight:600;"></div>
+    <input id="customDialogInput" style="display:none;width:90%;padding:8px;border-radius:6px;border:none;background:#202020;color:#00ff55;">
+    <div style="display:flex;justify-content:flex-end;gap:8px;">
+      <button id="customDialogOk" style="padding:6px 12px;border:none;border-radius:6px;background:#00ff55;color:#0b0f12;cursor:pointer;">OK</button>
+      <button id="customDialogCancel" style="padding:6px 12px;border:none;border-radius:6px;background:#0b0f12;color:#00ff55;border:1px solid #00ff55;cursor:pointer;display:none;">Cancel</button>
+    </div>
+  </div>
+</div>
+
 <!-- drawer (half width when open) -->
 <div id="playlistDrawer" class="playlist-drawer" aria-hidden="true">
   <div class="drawer-header">
@@ -463,6 +474,12 @@ function onYouTubeIframeAPIReady(){
     playerVars: { rel:0, modestbranding:1 }
   });
 }
+
+const dialog = document.getElementById('customDialog');
+const messageEl = document.getElementById('customDialogMessage');
+const inputEl = document.getElementById('customDialogInput');
+const okBtn = document.getElementById('customDialogOk');
+const cancelBtn = document.getElementById('customDialogCancel');
 
 /* ---------- Search ---------- */
 async function searchSongs(q){
@@ -569,7 +586,7 @@ repeatBtn.addEventListener('click', ()=>{
 
 /* Shuffle (Fisher-Yates) */
 document.getElementById('shuffleBtn').addEventListener('click', ()=>{
-  if(queue.length <= 1) return alert('Need at least 2 songs to shuffle.');
+  if(queue.length <= 1) return customAlert("Need at least 2 songs to shuffle.");
   // keep current playing track if any
   const currentId = currentIndex !== -1 ? queue[currentIndex].videoId : null;
   for(let i = queue.length - 1; i > 0; i--){
@@ -582,7 +599,7 @@ document.getElementById('shuffleBtn').addEventListener('click', ()=>{
     if(newIndex !== -1) currentIndex = newIndex;
   }
   updateQueueUI(); saveQueueToLocal();
-  alert('Queue shuffled!');
+  customAlert("Queue Shuffled!");
 });
 
 /* LocalStorage for queue */
@@ -672,12 +689,19 @@ function renderSelectedPlaylist(){
     const actions = document.createElement('div'); actions.className='song-actions';
     const playBtn = document.createElement('button'); playBtn.className='btn'; playBtn.textContent='Play';
     playBtn.addEventListener('click', (e)=>{ e.stopPropagation(); addToQueue(track); playIndex(queue.length - 1); });
-    const delBtn = document.createElement('button'); delBtn.className='btn'; delBtn.textContent='Delete';
-    delBtn.addEventListener('click', (e)=>{ e.stopPropagation();
-      if(!confirm(`Remove "${track.title}" from "${selectedPlaylist}"?`)) return;
-      playlists[selectedPlaylist].splice(idx,1);
-      savePlaylistsToLocal(); renderSelectedPlaylist();
+    const delBtn = document.createElement('button'); 
+    delBtn.className = 'btn'; 
+    delBtn.textContent = 'Delete';
+    delBtn.addEventListener('click', (e) => { 
+      e.stopPropagation();
+      customConfirm(`Remove "${track.title}" from "${selectedPlaylist}"?`, (result) => {
+        if(!result) return;
+        playlists[selectedPlaylist].splice(idx, 1);
+        savePlaylistsToLocal();
+        renderSelectedPlaylist();
+      });
     });
+
     actions.appendChild(playBtn); actions.appendChild(delBtn);
     row.appendChild(actions);
     box.appendChild(row);
@@ -687,25 +711,46 @@ function renderSelectedPlaylist(){
 /* Create & Delete playlists (sidebar buttons)
    Delete requires typing exact name for confirmation (as you requested earlier) */
 document.getElementById('newPlaylistBtn').addEventListener('click', ()=>{
-  const name = prompt('Enter a new playlist name:'); if(!name) return;
-  if(playlists[name]) return alert('A playlist with that name already exists.');
-  playlists[name] = []; savePlaylistsToLocal(); updatePlaylistsSidebar(); openPlaylistDrawer(name);
+  customPrompt('Enter a new playlist name:', (name) => {
+    if(!name) return;
+    if(playlists[name]) return customAlert('A playlist with that name already exists.');
+    playlists[name] = [];
+    savePlaylistsToLocal();
+    updatePlaylistsSidebar();
+    openPlaylistDrawer(name);
+  });
 });
+
 document.getElementById('deletePlaylistBtn').addEventListener('click', ()=>{
-  const name = prompt('Type the exact playlist name to delete:'); if(!name) return;
-  if(!playlists[name]) return alert('Playlist not found!');
-  if(!confirm(`Are you sure you want to delete "${name}"? This cannot be undone.`)) return;
-  delete playlists[name]; savePlaylistsToLocal();
-  selectedPlaylist = (selectedPlaylist === name) ? null : selectedPlaylist;
-  document.getElementById('selectedPlaylistName').textContent = selectedPlaylist || 'None';
-  updatePlaylistsSidebar(); renderSelectedPlaylist();
+  customPrompt('Type the exact playlist name to delete:', (name) => {
+    if(!name) return;
+
+    if(!playlists[name]) {
+      customAlert('Playlist not found!');
+      return;
+    }
+
+    customConfirm(`Are you sure you want to delete "${name}"? This cannot be undone.`, (result) => {
+      if(!result) return;
+
+      // Continue with deletion logic
+      delete playlists[name];
+      savePlaylistsToLocal();
+      selectedPlaylist = (selectedPlaylist === name) ? null : selectedPlaylist;
+      document.getElementById('selectedPlaylistName').textContent = selectedPlaylist || 'None';
+      updatePlaylistsSidebar();
+      renderSelectedPlaylist();
+    });
+  });
 });
+
+
 
 /* Add currently playing song to selected playlist via dropdown in drawer */
 document.getElementById('addCurrentToSelectedBtn').addEventListener('click', ()=>{
-  if(currentIndex === -1) return alert('No song is currently playing.');
-  const sel = document.getElementById('playlistAddSelect'); if(sel.disabled) return alert('Create a playlist first.');
-  const chosen = sel.value; if(!chosen) return alert('Select a playlist.');
+  if(currentIndex === -1) return customAlert('No song is currently playing.');
+  const sel = document.getElementById('playlistAddSelect'); if(sel.disabled) return customAlert('Create a playlist first.');
+  const chosen = sel.value; if(!chosen) return customAlert('Select a playlist.');
   const playing = queue[currentIndex];
   // push full track data
   playlists[chosen].push({
@@ -713,21 +758,32 @@ document.getElementById('addCurrentToSelectedBtn').addEventListener('click', ()=
   });
   savePlaylistsToLocal();
   if(selectedPlaylist === chosen) renderSelectedPlaylist();
-  alert(`Added "${playing.title}" to "${chosen}"`);
+  customAlert(`Added "${playing.title}" to "${chosen}"`);
 });
 
 /* Create playlist quick from drawer */
 document.getElementById('createPlaylistFromDrawerBtn').addEventListener('click', ()=>{
-  const name = prompt('Enter a name for the new playlist:'); if(!name) return;
-  if(playlists[name]) return alert('Already exists.');
-  playlists[name] = []; savePlaylistsToLocal(); updatePlaylistsSidebar(); renderPlaylistSelectOptions(); openPlaylistDrawer(name);
+  customPrompt('Enter a name for the new playlist:', (name) => {
+    if(!name) return;
+
+    if(playlists[name]) {
+      customAlert('Already exists.');
+      return;
+    }
+
+    playlists[name] = [];
+    savePlaylistsToLocal();
+    updatePlaylistsSidebar();
+    renderPlaylistSelectOptions();
+    openPlaylistDrawer(name);
+  });
 });
 
 /* Play Playlist: load playlist into queue and start playback (Option A: manual Play) */
 document.getElementById('playPlaylistBtn').addEventListener('click', ()=>{
-  if(!selectedPlaylist) return alert('Select a playlist from the left first.');
+  if(!selectedPlaylist) return customAlert('Select a playlist from the left first.');
   const list = playlists[selectedPlaylist] || [];
-  if(!list.length) return alert('Playlist is empty.');
+  if(!list.length) return customAlert('Playlist is empty.');
   // replace queue with playlist items
   queue = list.map(t => ({ videoId: t.videoId, title: t.title, channel: t.channel, thumb: t.thumb }));
   saveQueueToLocal(); updateQueueUI();
@@ -745,7 +801,7 @@ document.getElementById('togglePlaylistRepeatBtn').addEventListener('click', ()=
 
 /* Add to playlist button in player (opens drawer and selects playlist if possible) */
 document.getElementById('addToPlaylistBtn').addEventListener('click', ()=>{
-  if(currentIndex === -1) return alert('No song is currently playing.');
+  if(currentIndex === -1) return customAlert('No song is currently playing.');
   // if drawer closed, open it
   if(!drawer.classList.contains('open')){
     // open and select first playlist if exists
@@ -756,7 +812,35 @@ document.getElementById('addToPlaylistBtn').addEventListener('click', ()=>{
     // focus select
   }
 });
+function customAlert(msg, callback) {
+  messageEl.textContent = msg;
+  inputEl.style.display = 'none';
+  cancelBtn.style.display = 'none';
+  dialog.style.display = 'flex';
+  okBtn.onclick = () => {
+    dialog.style.display = 'none';
+    if (callback) callback();
+  };
+}
 
+function customConfirm(msg, callback) {
+  messageEl.textContent = msg;
+  inputEl.style.display = 'none';
+  cancelBtn.style.display = 'inline-block';
+  dialog.style.display = 'flex';
+  okBtn.onclick = () => { dialog.style.display = 'none'; callback(true); };
+  cancelBtn.onclick = () => { dialog.style.display = 'none'; callback(false); };
+}
+
+function customPrompt(msg, callback) {
+  messageEl.textContent = msg;
+  inputEl.style.display = 'block';
+  inputEl.value = '';
+  cancelBtn.style.display = 'inline-block';
+  dialog.style.display = 'flex';
+  okBtn.onclick = () => { dialog.style.display = 'none'; callback(inputEl.value); };
+  cancelBtn.onclick = () => { dialog.style.display = 'none'; callback(null); };
+}
 /* Render playlist options in select whenever drawer opens or playlists change */
 function openPlaylistDrawer(name){
   selectedPlaylist = name || selectedPlaylist;
@@ -786,5 +870,6 @@ window.onload = ()=>{
 
 <!-- hidden youtube player container -->
 <div id="yt-player" style="display:none"></div>
+
 </body>
 </html>
