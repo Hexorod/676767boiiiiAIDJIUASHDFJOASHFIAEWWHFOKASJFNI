@@ -470,16 +470,15 @@ let selectedPlaylist = null;
 let playlistRepeat = false;
 
 /* ---------- IFrame API ---------- */
-function onYouTubeIframeAPIReady(){
+function onYouTubeIframeAPIReady() {
   YTplayer = new YT.Player('yt-player', {
-    height: '180',
-    width: '320',
-    videoId: '',
+    height: '1',
+    width: '1',
     playerVars: {
       rel: 0,
       modestbranding: 1,
       enablejsapi: 1,
-      'origin': 'https://hexorod.github.io'// VERY important for Chrome
+      'origin': 'https://hexorod.github.io'
     },
     events: {
       onReady: () => {
@@ -488,6 +487,13 @@ function onYouTubeIframeAPIReady(){
       },
       onStateChange: (e) => {
         if (e.data === YT.PlayerState.ENDED) nextTrack();
+      },
+      // ADD THIS PART BACK
+      onError: (e) => {
+        console.error("YT Player Error:", e.data);
+        // e.data will be 2, 4, 5, 100, 101, 150, 153 etc.
+        // You could automatically skip to the next track on an error
+        nextTrack(); 
       }
     }
   });
