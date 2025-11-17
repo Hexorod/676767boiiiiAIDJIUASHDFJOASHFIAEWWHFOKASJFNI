@@ -459,6 +459,7 @@ html,body{
 <script>
 /* ---------- State ---------- */
 let YTplayer;
+let playerReady = false;
 let queue = [], currentIndex = -1, isPlaying = false;
 let repeatMode = 0; // 0=no repeat,1=repeat all,2=repeat one
 const repeatIcons = ["🔁","🔂","⏹"];
@@ -470,8 +471,24 @@ let playlistRepeat = false;
 /* ---------- IFrame API ---------- */
 function onYouTubeIframeAPIReady(){
   YTplayer = new YT.Player('yt-player', {
-    events: { onReady: ()=>{}, onStateChange: (e)=> { if(e.data === YT.PlayerState.ENDED) nextTrack(); } },
-    playerVars: { rel:0, modestbranding:1 }
+    height: '1',
+    width: '1',
+    videoId: '',
+    playerVars: {
+      rel: 0,
+      modestbranding: 1,
+      enablejsapi: 1,
+      origin: window.location.origin   // VERY important for Chrome
+    },
+    events: {
+      onReady: () => {
+        playerReady = true;
+        console.log("YT Player ready.");
+      },
+      onStateChange: (e) => {
+        if (e.data === YT.PlayerState.ENDED) nextTrack();
+      }
+    }
   });
 }
 
@@ -544,15 +561,29 @@ document.getElementById('clearQueueBtn').addEventListener('click', ()=>{
 
 /* ---------- Player ---------- */
 function playIndex(idx){
-  if(queue.length === 0) return;
+  if (queue.length === 0) return;
   currentIndex = idx;
   const item = queue[idx];
-  if(YTplayer && item && item.videoId) YTplayer.loadVideoById(item.videoId);
+
+  // === YOUTUBE PLAYER READY GUARD ===
+  if (!YTplayer || !playerReady) {
+    console.warn("YT Player not ready yet, delaying load…");
+    // retry automatically after 300ms
+    setTimeout(() => playIndex(idx), 300);
+    return;
+  }
+
+  // safe to load video
+  if (item && item.videoId) YTplayer.loadVideoById(item.videoId);
+
   document.getElementById('playerTitle').textContent = item.title || 'Loading...';
   document.getElementById('playerArtist').textContent = item.channel || '—';
   document.getElementById('playerThumb').src = item.thumb || '';
-  isPlaying = true; updatePlayPauseBtn(); updateQueueUI();
+  isPlaying = true;
+  updatePlayPauseBtn();
+  updateQueueUI();
 }
+
 function prevTrack(){
   if(queue.length === 0) return;
   if(currentIndex > 0) playIndex(currentIndex - 1);
