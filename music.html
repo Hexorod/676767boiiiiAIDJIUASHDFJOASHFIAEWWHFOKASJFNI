@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
+<meta name="referrer" content="strict-origin-when-cross-origin">
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>BOI MUSIC</title>
 <script src="https://www.youtube.com/iframe_api"></script>
@@ -478,7 +479,7 @@ function onYouTubeIframeAPIReady(){
       rel: 0,
       modestbranding: 1,
       enablejsapi: 1,
-      origin: window.location.origin   // VERY important for Chrome
+      'origin': 'https://hexorod.github.io'// VERY important for Chrome
     },
     events: {
       onReady: () => {
