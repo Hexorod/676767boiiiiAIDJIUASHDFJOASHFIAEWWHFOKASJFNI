@@ -348,7 +348,6 @@
           <button class="control-btn" id="prevBtn">⏮</button>
           <button class="control-btn" id="playPauseBtn">▶️</button>
           <button class="control-btn" id="nextBtn">⏭</button>
-          <button class="control-btn" id="repeatBtn">🔁</button>
           <button class="control-btn" id="repeatBtn"></button>
         </div>
         <div style="width:25%;text-align:right;padding-right:8px"></div>
@@ -483,38 +482,54 @@
       updateQueueUI(); saveQueueToLocal();
     });
 
-   // ---------- Player (Embed) ----------
-      function playIndex(idx){
-        if(queue.length === 0) return;
-        currentIndex = idx;
-        const item = queue[idx];
-        if(item && item.videoId){
-          // Added enablejsapi=1 to allow postMessage events
-          embedIframe.src = `https://www.youtube.com/embed/${item.videoId}?autoplay=1&rel=0&modestbranding=1&enablejsapi=1`;
-        }
-        document.getElementById('playerTitle').textContent = item.title || 'Loading...';
-        document.getElementById('playerArtist').textContent = item.channel || '—';
-        document.getElementById('playerThumb').src = item.thumb || '';
-        isPlaying = true;
-        updatePlayPauseBtn();
-        updateQueueUI();
+    // ---------- Player (Embed) ----------
+    function playIndex(idx) {
+      if (queue.length === 0) return;
+      currentIndex = idx;
+      const item = queue[idx];
+      if (item && item.videoId) {
+        // Set iframe src with enablejsapi=1 so we can postMessage to it
+        embedIframe.src = `https://www.youtube-nocookie.com/embed/${item.videoId}?autoplay=1&rel=0&modestbranding=1&enablejsapi=1`;
+    
+        // When iframe loads, send the "listening" message so it will post infoDelivery events
+        embedIframe.onload = () => {
+          embedIframe.contentWindow.postMessage(
+            JSON.stringify({ event: "listening" }),
+            "https://www.youtube-nocookie.com"
+          );
+        };
       }
-
-      // ---------- Detect video end ----------
-      window.addEventListener('message', (event) => {
-        if(!event.origin.includes("youtube.com")) return;
-        let data;
-        try { data = JSON.parse(event.data); } catch(e){ return; }
-
-        // YT event 0 = video ended
-        if(data.event === 'onStateChange' && data.info === 0){
-          nextTrack(); // call your existing nextTrack function
-        }
-      });
-
-
-      // Note: Without the IFrame API we cannot detect video end, so "nextTrack" will not auto‑trigger reliably.
+    
+      // Update UI
+      document.getElementById("playerTitle").textContent = item.title || "Loading...";
+      document.getElementById("playerArtist").textContent = item.channel || "—";
+      document.getElementById("playerThumb").src = item.thumb || "";
+      isPlaying = true;
+      updatePlayPauseBtn();
+      updateQueueUI();
     }
+    
+    // Listen for YouTube postMessages (infoDelivery) to detect video end
+    window.addEventListener("message", (event) => {
+      if (!event.origin.includes("youtube.com")) return;
+    
+      let data;
+      try {
+        data = JSON.parse(event.data);
+      } catch (e) {
+        return;
+      }
+    
+      // Detect video ended (playerState 0)
+      if (data.event === "infoDelivery" && data.info && typeof data.info.playerState === "number") {
+        if (data.info.playerState === 0) {
+          console.log("Video ended via postMessage hack!");
+          nextTrack(); // auto-play next track
+        }
+      }
+    });
+
+    
 
     function prevTrack(){
       if(queue.length === 0) return;
@@ -536,7 +551,6 @@
         updateQueueUI();
       }
     }
-    
 
     // Controls
     function updatePlayPauseBtn(){
@@ -824,6 +838,17 @@
         document.getElementById('playlistAddSelect').focus();
       }
     });
+        window.addEventListener('message', (event) => {
+      if(!event.origin.includes("youtube.com")) return;
+      let data;
+      try { data = JSON.parse(event.data); } catch(e) { return; }
+    
+      // Event 0 = video ended
+      if(data.event === 'onStateChange' && data.info === 0){
+        nextTrack(); // Calls your existing nextTrack function
+      }
+    });
+
 
     // Init
     window.onload = () => {
