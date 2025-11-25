@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -467,15 +466,20 @@ const repeatIcons = ["🔁","🔂","⏹"];
 let playlists = JSON.parse(localStorage.getItem('BOIMUSIC_PLAYLISTS') || '{}');
 let selectedPlaylist = null;
 let playlistRepeat = false;
+let lastFailedVideoId = null; // <-- ADD THIS LINE
+let isPlayerReady = false;
+// ...
 
 /* ---------- IFrame API ---------- */
 function onYouTubeIframeAPIReady(){
   YTplayer = new YT.Player('yt-player', {
     host: 'https://www.youtube-nocookie.com', // <-- Add this line
-    events: { onReady: ()=>{}, onStateChange: (e)=> { if(e.data === YT.PlayerState.ENDED) nextTrack(); } },
+    events: { onError': onPlayerError, onReady: ()=>{}, onStateChange: (e)=> { if(e.data === YT.PlayerState.ENDED) nextTrack(); } },
     playerVars: { rel:0, modestbranding:1 }
   });
 }
+  
+  
 
 const dialog = document.getElementById('customDialog');
 const messageEl = document.getElementById('customDialogMessage');
@@ -512,6 +516,42 @@ document.getElementById('searchBtn').addEventListener('click', async ()=>{
     c.appendChild(row);
   });
 });
+/**
+ * This function is called by the YouTube API when a video fails to play.
+ * It will attempt to retry the song ONCE, then skip it if it fails again.
+ */
+function onPlayerError(event) {
+  console.error('YouTube Player Error:', event.data);
+
+  // If nothing is supposed to be playing, do nothing
+  if (currentIndex === -1) return; 
+  
+  const failedTrack = queue[currentIndex];
+  const failedVideoId = failedTrack.id;
+  
+  // Check if this is the *same video* that just failed
+  if (lastFailedVideoId === failedVideoId) {
+    // --- SECOND FAILURE ---
+    // This is the second try. Give up.
+    console.warn(`Failed to play "${failedTrack.title}" twice. Skipping.`);
+    customAlert(`"${failedTrack.title}" seems unplayable. Skipping to the next track.`);
+    
+    // Reset the tracker and play the next song
+    lastFailedVideoId = null; 
+    playNext();
+
+  } else {
+    // --- FIRST FAILURE ---
+    // This is the first time this song has failed. Let's retry it.
+    console.warn(`Failed to play "${failedTrack.title}". Retrying...`);
+    
+    // Set the tracker to this video ID
+    lastFailedVideoId = failedVideoId;
+    
+    // Tell the player to load the video again
+    player.loadVideoById(failedVideoId);
+  }
+}
 
 /* ---------- Queue ---------- */
 function addToQueue(item){
