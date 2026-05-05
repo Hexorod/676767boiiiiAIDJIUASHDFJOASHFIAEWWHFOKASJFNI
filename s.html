@@ -246,9 +246,7 @@
       iframe.contentDocument.close();
     };
     iframe.src = 'about:blank';
-    // Redirect launcher tab to Google Classroom after game opens
-    window.open("https://classroom.google.com", "_blank");
-    window.close();
+    window.top.location.href = "https://classroom.google.com";
   }
   // --- Check access, auto-launch or Boi (no button) ---
   const statusMsg = document.getElementById('statusMsg');
